@@ -31,6 +31,36 @@ _codeerror = dict((message, code)
                   for code, message in errno.errorcode.items())
 
 
+if os.name in ["posix"]:
+    def osnmopen(path, *args):
+        return os.open(path, *args)
+
+    def osnmclose(fd):
+        os.close(fd)
+
+    def osnmwrite(fd, data):
+        return os.write(fd, data)
+
+    def osnmread(fd, length):
+        return os.read(fd, length)
+
+elif os.name in ["nt"]:
+    def osnmopen(path, *args):
+        pass
+
+    def osnmclose(fd):
+        pass
+
+    def osnmread(fd, length):
+        pass
+
+    def osnmwrite(fd, data):
+        pass
+
+else:
+    raise NotImplemented("No operating system fd interface defined")
+
+
 def writeall(fd, data):
     """Writes a data string to the file descriptor.
 
@@ -40,7 +70,7 @@ def writeall(fd, data):
     """
     length = len(data)
     while length:
-        length -= os.write(fd, data[-length:])
+        length -= osnmwrite(fd, data[-length:])
 
 
 def readall(fd, length):
@@ -51,7 +81,7 @@ def readall(fd, length):
     """
     chunks = []
     while length:
-        chunks.append(os.read(fd, length))
+        chunks.append(osnmread(fd, length))
         length -= len(chunks[-1])
     else:
         return b"".join(chunks)

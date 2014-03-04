@@ -24,7 +24,7 @@ if sys.version_info[0] is not 3:
     bytes, str = str, unicode
 
 from .exceptions import ConnectionError
-from .helpers import writeall, readall
+from .helpers import writeall, readall, osnmopen, osnmclose, osnmread
 from ._internal import Packet
 
 
@@ -51,7 +51,7 @@ class FileDescriptorConnection(object):
             return
 
         try:
-            os.close(self.fd)
+            osnmclose(self.fd)
         except OSError as e:
             if not silent:
                 raise ConnectionError(e.args)
@@ -105,7 +105,7 @@ class FileDescriptorConnection(object):
             # blocking unless any new data appears, so we have to check
             # size value, before reading.
             payload = ("" if size is 0 else
-                       os.read(self.fd, size).decode("utf-8"))
+                       osnmread(self.fd, size).decode("utf-8"))
 
             return Packet(op, payload, rq_id, tx_id)
 
@@ -180,7 +180,26 @@ class XenBusConnection(FileDescriptorConnection):
             return
 
         try:
-            self.fd = os.open(self.path, os.O_RDWR)
+            self.fd = osnmopen(self.path, os.O_RDWR)
         except OSError as e:
             raise ConnectionError("Error while opening {0!r}: {1}"
+                                  .format(self.path, e.args))
+
+
+class XenBusConnectionWin(FileDescriptorConnection):
+    def __init__(self):
+        # need to workout self.path using the magic windows code
+        pass
+
+    def __copy__(self):
+        return self.__class__()
+
+    def connect(self):
+        if self.fd:
+            return
+
+        try:
+             self.fd = osnmopen(self.path)
+        except Exception as e:
+             raise ConnectionError("Error while opening {0!r}: {1}"
                                   .format(self.path, e.args))

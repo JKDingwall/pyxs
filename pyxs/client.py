@@ -24,6 +24,7 @@ import re
 import threading
 import time
 import posixpath
+import os
 from collections import deque
 
 from ._internal import Event, Packet, Op
@@ -85,9 +86,11 @@ class Client(object):
                  xen_bus_path=None, connection=None, transaction=None):
         if connection:
             self.connection = connection
-        elif unix_socket_path or not xen_bus_path:
+        elif os.name in ["posix"] and (unix_socket_path or not xen_bus_path):
             self.connection = UnixSocketConnection(
                 unix_socket_path, socket_timeout=socket_timeout)
+        elif os.name in ["nt"]:
+            self.connection = XenBusConnectionWin()
         else:
             self.connection = XenBusConnection(xen_bus_path)
 
