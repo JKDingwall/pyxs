@@ -28,7 +28,7 @@ import os
 from collections import deque
 
 from ._internal import Event, Packet, Op
-from .connection import UnixSocketConnection, XenBusConnection
+from .connection import UnixSocketConnection, XenBusConnection, XenBusConnectionWin
 from .exceptions import UnexpectedPacket, PyXSError
 from .helpers import validate_path, validate_watch_path, validate_perms, \
     dict_merge, force_unicode, error
