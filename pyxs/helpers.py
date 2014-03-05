@@ -45,17 +45,33 @@ if os.name in ["posix"]:
         return os.read(fd, length)
 
 elif os.name in ["nt"]:
+    from win32file import CreateFile, CloseHandle, ReadFile, WriteFile
+    from win32file import FILE_GENERIC_READ, FILE_GENERIC_WRITE, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL
+
     def osnmopen(path, *args):
-        pass
+        # CreateFile(path, FILE_GENERIC_READ|FILE_GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        # http://docs.activestate.com/activepython/2.7/pywin32/win32file__CreateFile_meth.html
+        # PyHANDLE = CreateFile(fileName, desiredAccess , shareMode , attributes , CreationDisposition , flagsAndAttributes , hTemplateFile )
+        return CreateFile(path, FILE_GENERIC_READ|FILE_GENERIC_WRITE, 0, None, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, None)
 
     def osnmclose(fd):
-        pass
+        # http://docs.activestate.com/activepython/2.7/pywin32/win32file__CloseHandle_meth.html
+        # CloseHandle(handle)
+        CloseHandle(fd)
 
     def osnmread(fd, length):
-        pass
+        # ReadFile(handle, buf, 1024, &bytes_read, NULL)
+        # http://docs.activestate.com/activepython/2.7/pywin32/win32file__ReadFile_meth.html
+        # (int, string) = ReadFile(hFile, buffer/bufSize , ol )
+        (lread, data) = ReadFile(fd, length, None)
+        return data
 
     def osnmwrite(fd, data):
-        pass
+        # WriteFile(handle, buf, sizeof(*msg) + msg->len, &bytes_written, NULL)
+        # http://docs.activestate.com/activepython/2.7/pywin32/win32file__WriteFile_meth.html
+        # int, int = WriteFile(hFile, data , ol )
+        errCode, lwrite = WriteFile(fd, data, None)
+        return lwrite
 
 else:
     raise NotImplemented("No operating system fd interface defined")
