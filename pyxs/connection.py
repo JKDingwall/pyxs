@@ -123,6 +123,10 @@ class FileDescriptorConnection(object):
             return Packet(op, payload, rq_id, tx_id)
 
 
+    def __del__(self):
+        self.disconnect()
+
+
 class UnixSocketConnection(FileDescriptorConnection):
     """XenStore connection through Unix domain socket.
 
@@ -205,7 +209,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
         # Determine self.path using some magic Windows code which is derived from
         # http://pydoc.net/Python/pyserial/2.6/serial.tools.list_ports_windows/.
         # The equivalent C from The GPLPV driver source is:
-"""
+        """\
 DEFINE_GUID(GUID_XENBUS_IFACE, 0x14ce175a, 0x3ee2, 0x4fae, 0x92, 0x52, 0x0, 0xdb, 0xd8, 0x4f, 0x1, 0x8e);
 
 static char *
@@ -248,26 +252,20 @@ get_xen_interface_path()
         DIGCF_PRESENT = 2
         DIGCF_DEVICEINTERFACE = 16
         NULL = None
+        ERROR_SUCCESS = 0
         ERROR_INSUFFICIENT_BUFFER = 122
         ERROR_NO_MORE_ITEMS = 259
 
         HDEVINFO = ctypes.c_void_p
+        PCTSTR = ctypes.c_char_p
+        CHAR = ctypes.c_char
         PDWORD = ctypes.POINTER(DWORD)
         LPDWORD = ctypes.POINTER(DWORD)
+        PULONG = ctypes.POINTER(ULONG)
 
         # Return code checkers
         def ValidHandle(value, func, arguments):
             if value == 0:
-                raise WindowsDriverError(str(ctypes.WinError()))
-            return value
-
-        def ValidEnum(value, func, arguments):
-            if value != ERROR_NO_MORE_ITEMS:
-                raise WindowsDriverError(str(ctypes.WinError()))
-            return value
-
-        def ValidSdid(value, func, arguments):
-            if value != ERROR_INSUFFICIENT_BUFFER:
                 raise WindowsDriverError(str(ctypes.WinError()))
             return value
 
@@ -294,7 +292,7 @@ get_xen_interface_path()
                 ('cbSize', DWORD),
                 ('ClassGuid', GUID),
                 ('DevInst', DWORD),
-                ('Reserved', ULONG_PTR),
+                ('Reserved', PULONG),
             ]
 
             def __str__(self):
@@ -306,7 +304,7 @@ get_xen_interface_path()
                 ('cbSize', DWORD),
                 ('InterfaceClassGuid', GUID),
                 ('Flags', DWORD),
-                ('Reserved', ULONG_PTR),
+                ('Reserved', PULONG),
             ]
 
             def __str__(self):
@@ -326,12 +324,10 @@ get_xen_interface_path()
         SetupDiEnumDeviceInterfaces = setupapi.SetupDiEnumDeviceInterfaces
         SetupDiEnumDeviceInterfaces.argtypes = [HDEVINFO, PSP_DEVINFO_DATA, ctypes.POINTER(GUID), DWORD, PSP_DEVICE_INTERFACE_DATA]
         SetupDiEnumDeviceInterfaces.restype = BOOL
-        SetupDiEnumDeviceInterfaces.errcheck = ValidEnum
 
         SetupDiGetDeviceInterfaceDetail = setupapi.SetupDiGetDeviceInterfaceDetailA
         SetupDiGetDeviceInterfaceDetail.argtypes = [HDEVINFO, PSP_DEVICE_INTERFACE_DATA, PSP_DEVICE_INTERFACE_DETAIL_DATA, DWORD, PDWORD, PSP_DEVINFO_DATA]
         SetupDiGetDeviceInterfaceDetail.restype = BOOL
-        SetupDiGetDeviceInterfaceDetail.errcheck = ValidSdid
 
         SetupDiDestroyDeviceInfoList = setupapi.SetupDiDestroyDeviceInfoList
         SetupDiDestroyDeviceInfoList.argtypes = [HDEVINFO]
@@ -340,14 +336,18 @@ get_xen_interface_path()
         # Do stuff
         GUID_XENBUS_IFACE = GUID(0x14ce175aL, 0x3ee2, 0x4fae, (BYTE*8)(0x92, 0x52, 0x0, 0xdb, 0xd8, 0x4f, 0x1, 0x8e))
 
-        handle = SetupDiGetClassDevs(ctypes.byref(GUID_XENBUS_IFACE), 0, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+        handle = SetupDiGetClassDevs(ctypes.byref(GUID_XENBUS_IFACE), NULL, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
 
         sdid = SP_DEVICE_INTERFACE_DATA()
         sdid.cbSize = ctypes.sizeof(sdid)
-        SetupDiEnumDeviceInterfaces(handle, NULL, ctypes.byref(GUID_XENBUS_IFACE), 0, ctype.byref(sdid))
+        if not SetupDiEnumDeviceInterfaces(handle, NULL, ctypes.byref(GUID_XENBUS_IFACE), 0, ctypes.byref(sdid)):
+            if ctypes.GetLastError() != ERROR_NO_MORE_ITEMS:
+                    raise WindowsDriverError(str(ctypes.WinError()))
 
         buf_len = DWORD()
-        SetupDiGetDeviceInterfaceDetail(handle, ctypes.byref(sdid), NULL, 0, ctypes.byref(buf_len), NULL);
+        if not SetupDiGetDeviceInterfaceDetail(handle, ctypes.byref(sdid), NULL, 0, ctypes.byref(buf_len), NULL):
+            if ctypes.GetLastError() != ERROR_INSUFFICIENT_BUFFER:
+                raise WindowsDriverError(str(ctypes.WinError()))
 
         # We didn't know how big to make the structure until buf_len is assigned...
         class SP_DEVICE_INTERFACE_DETAIL_DATA_A(ctypes.Structure):
@@ -360,7 +360,9 @@ get_xen_interface_path()
                 return "DevicePath:%s" % (self.DevicePath,)
 
         sdidd = SP_DEVICE_INTERFACE_DETAIL_DATA_A()
-        sdidd.cbSize = ctypes.sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_A);
+        sdidd.cbSize = ctypes.sizeof(ctypes.POINTER(SP_DEVICE_INTERFACE_DETAIL_DATA_A))
+        if not SetupDiGetDeviceInterfaceDetail(handle, ctypes.byref(sdid), ctypes.byref(sdidd), buf_len, NULL, NULL):
+            raise WindowsDriverError(str(ctypes.WinError()))
         self.path = ""+sdidd.DevicePath
 
         SetupDiDestroyDeviceInfoList(handle)
