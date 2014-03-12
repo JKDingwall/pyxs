@@ -36,7 +36,7 @@ if os.name in ["nt"]:
 if sys.version_info[0] is not 3:
     bytes, str = str, unicode
 
-from .exceptions import ConnectionError
+from .exceptions import ConnectionError, WindowsDriverError
 from .helpers import writeall, readall, osnmopen, osnmclose, osnmread
 from ._internal import Packet
 
@@ -258,17 +258,17 @@ get_xen_interface_path()
         # Return code checkers
         def ValidHandle(value, func, arguments):
             if value == 0:
-                raise ctypes.WinError()
+                raise WindowsDriverError(str(ctypes.WinError()))
             return value
 
         def ValidEnum(value, func, arguments):
             if value != ERROR_NO_MORE_ITEMS:
-                raise ctypes.WinError()
+                raise WindowsDriverError(str(ctypes.WinError()))
             return value
 
         def ValidSdid(value, func, arguments):
             if value != ERROR_INSUFFICIENT_BUFFER:
-                raise ctypes.WinError()
+                raise WindowsDriverError(str(ctypes.WinError()))
             return value
 
         # Some structures used by the Windows API
