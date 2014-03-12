@@ -208,47 +208,8 @@ class XenBusConnectionWin(FileDescriptorConnection):
     def __init__(self):
         # Determine self.path using some magic Windows code which is derived from
         # http://pydoc.net/Python/pyserial/2.6/serial.tools.list_ports_windows/.
-        # The equivalent C from The GPLPV driver source is:
-        """\
-DEFINE_GUID(GUID_XENBUS_IFACE, 0x14ce175a, 0x3ee2, 0x4fae, 0x92, 0x52, 0x0, 0xdb, 0xd8, 0x4f, 0x1, 0x8e);
-
-static char *
-get_xen_interface_path()
-{
-  HDEVINFO handle;
-  SP_DEVICE_INTERFACE_DATA sdid;
-  SP_DEVICE_INTERFACE_DETAIL_DATA *sdidd;
-  DWORD buf_len;
-  char *path;
-
-  handle = SetupDiGetClassDevs(&GUID_XENBUS_IFACE, 0, NULL, DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
-  if (handle == INVALID_HANDLE_VALUE)
-  {
-    printf("SetupDiGetClassDevs failed\n");
-    return NULL;
-  }
-  sdid.cbSize = sizeof(sdid);
-  if (!SetupDiEnumDeviceInterfaces(handle, NULL, &GUID_XENBUS_IFACE, 0, &sdid))
-  {
-    printf("SetupDiEnumDeviceInterfaces failed\n");
-    return NULL;
-  }
-  SetupDiGetDeviceInterfaceDetail(handle, &sdid, NULL, 0, &buf_len, NULL);
-  sdidd = malloc(buf_len);
-  sdidd->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
-  if (!SetupDiGetDeviceInterfaceDetail(handle, &sdid, sdidd, buf_len, NULL, NULL))
-  {
-    printf("SetupDiGetDeviceInterfaceDetail failed\n");
-    return NULL;
-  }
-
-  path = malloc(strlen(sdidd->DevicePath) + 1);
-  StringCbCopyA(path, strlen(sdidd->DevicePath) + 1, sdidd->DevicePath);
-  free(sdidd);
-
-  return path;
-}
-"""
+        # The equivalent C from The GPLPV driver source can be found in get_xen_interface_path() of shutdownmon.
+        # - http://xenbits.xensource.com/ext/win-pvdrivers/file/896402519f15/shutdownmon/shutdownmon.c
         DIGCF_PRESENT = 2
         DIGCF_DEVICEINTERFACE = 16
         NULL = None
