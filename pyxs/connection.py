@@ -123,10 +123,6 @@ class FileDescriptorConnection(object):
             return Packet(op, payload, rq_id, tx_id)
 
 
-    def __del__(self):
-        self.disconnect()
-
-
 class UnixSocketConnection(FileDescriptorConnection):
     """XenStore connection through Unix domain socket.
 
