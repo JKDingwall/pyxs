@@ -200,12 +200,27 @@ class XenBusConnection(FileDescriptorConnection):
                                   .format(self.path, e.args))
 
 
+_winDevicePath = None
+
 class XenBusConnectionWin(FileDescriptorConnection):
     def __init__(self):
+        global _winDevicePath
+
+        # Once the windows device path is learned once reuse it otherwise
+        # ctypes.POINTER() for the same structure leaks memory.   Although
+        # this can be reclaimed with ctypes._reset_cache() this is poking
+        # at the internals of ctypes which doesn't seem to be a good idea.
+
+        if _winDevicePath:
+            self.path = _winDevicePath
+
+            return
+
         # Determine self.path using some magic Windows code which is derived from
         # http://pydoc.net/Python/pyserial/2.6/serial.tools.list_ports_windows/.
         # The equivalent C from The GPLPV driver source can be found in get_xen_interface_path() of shutdownmon.
         # - http://xenbits.xensource.com/ext/win-pvdrivers/file/896402519f15/shutdownmon/shutdownmon.c
+
         DIGCF_PRESENT = 2
         DIGCF_DEVICEINTERFACE = 16
         NULL = None
@@ -244,6 +259,8 @@ class XenBusConnectionWin(FileDescriptorConnection):
                     ''.join(["%02x" % d for d in self.Data4[2:]]),
                 )
 
+        PGUID = ctypes.POINTER(GUID)
+
         class SP_DEVINFO_DATA(ctypes.Structure):
             _fields_ = [
                 ('cbSize', DWORD),
@@ -254,6 +271,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
 
             def __str__(self):
                 return "ClassGuid:%s DevInst:%s" % (self.ClassGuid, self.DevInst)
+
         PSP_DEVINFO_DATA = ctypes.POINTER(SP_DEVINFO_DATA)
 
         class SP_DEVICE_INTERFACE_DATA(ctypes.Structure):
@@ -266,20 +284,20 @@ class XenBusConnectionWin(FileDescriptorConnection):
 
             def __str__(self):
                 return "InterfaceClassGuid:%s Flags:%s" % (self.InterfaceClassGuid, self.Flags)
-        PSP_DEVICE_INTERFACE_DATA = ctypes.POINTER(SP_DEVICE_INTERFACE_DATA)
 
+        PSP_DEVICE_INTERFACE_DATA = ctypes.POINTER(SP_DEVICE_INTERFACE_DATA)
         PSP_DEVICE_INTERFACE_DETAIL_DATA = ctypes.c_void_p
 
         # Import the Windows APIs
         setupapi = ctypes.windll.LoadLibrary("setupapi")
 
         SetupDiGetClassDevs = setupapi.SetupDiGetClassDevsA
-        SetupDiGetClassDevs.argtypes = [ctypes.POINTER(GUID), PCTSTR, HWND, DWORD]
+        SetupDiGetClassDevs.argtypes = [PGUID, PCTSTR, HWND, DWORD]
         SetupDiGetClassDevs.restype = HDEVINFO
         SetupDiGetClassDevs.errcheck = ValidHandle
 
         SetupDiEnumDeviceInterfaces = setupapi.SetupDiEnumDeviceInterfaces
-        SetupDiEnumDeviceInterfaces.argtypes = [HDEVINFO, PSP_DEVINFO_DATA, ctypes.POINTER(GUID), DWORD, PSP_DEVICE_INTERFACE_DATA]
+        SetupDiEnumDeviceInterfaces.argtypes = [HDEVINFO, PSP_DEVINFO_DATA, PGUID, DWORD, PSP_DEVICE_INTERFACE_DATA]
         SetupDiEnumDeviceInterfaces.restype = BOOL
 
         SetupDiGetDeviceInterfaceDetail = setupapi.SetupDiGetDeviceInterfaceDetailA
@@ -323,6 +341,8 @@ class XenBusConnectionWin(FileDescriptorConnection):
         self.path = ""+sdidd.DevicePath
 
         SetupDiDestroyDeviceInfoList(handle)
+
+        _winDevicePath = self.path
 
 
     def __copy__(self):
