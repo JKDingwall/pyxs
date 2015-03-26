@@ -124,7 +124,13 @@ class Client(object):
 
         with self.tx_lock:
             kwargs["tx_id"] = self.tx_id  # Forcing ``tx_id`` here.
-            self.connection.send(Packet(op, "".join(args), **kwargs))
+            if op in [Op.WRITE]:
+                # xenstore will write the trailing \x00 of the value
+                # for writes so trim it for behaviour equivalent to
+                # xenstore-write
+                self.connection.send(Packet(op, "".join(args)[:-1], **kwargs))
+            else:
+                self.connection.send(Packet(op, "".join(args), **kwargs))
 
             # If we have any watched paths `XenStore` will send watch
             # events mixed with replies to other operations, so we loop
