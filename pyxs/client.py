@@ -108,8 +108,12 @@ class Client(object):
             self.tx_id = self.transaction_start()
 
     def __enter__(self):
-        self.connection.connect()
-        return self
+            try:
+                self.connection.connect()
+            except wmi.x_wmi:
+                raise PyXSError, None, sys.exc_info()[2]
+            return self
+
 
     def __exit__(self, *exc_info):
         if not any(exc_info) and self.tx_id:
@@ -454,3 +458,4 @@ class Monitor(object):
 
             if sleep is not None:
                 time.sleep(sleep)
+

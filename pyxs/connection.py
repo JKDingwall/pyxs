@@ -42,7 +42,7 @@ if os.name in ["nt"]:
 if sys.version_info[0] is not 3:
     bytes, str = str, unicode
 
-from .exceptions import ConnectionError, WindowsDriverError
+from .exceptions import ConnectionError, WindowsDriverError, PyXSError
 from .helpers import writeall, readall, osnmopen, osnmclose, osnmread
 from ._internal import Packet
 
@@ -243,24 +243,39 @@ class XenBusConnectionWin(FileDescriptorConnection):
     # and store the result in response_packet 
     def send(self, packet):
 
-        self.connect()
+        try:
+            self.connect()
+        except wmi.x_wmi:
+            raise PyXSError, None, sys.exc_info()[2]
 
         remove_paths = lambda x : x.split('/')[-1]
 
         if packet.op == Op.READ:
                 #result = remove_paths(self.session.GetValue(packet.payload)[0])
-                result = self.session.GetValue(packet.payload)[0]
+                try:
+                    result = self.session.GetValue(packet.payload)[0]
+                except wmi.x_wmi:
+                    raise PyXSError, None, sys.exc_info()[2]
         elif packet.op == Op.WRITE:
-                payload = packet.payload.split('\x00', 1)
-                self.session.SetValue(payload[0], payload[1])
+                try:
+                    payload = packet.payload.split('\x00', 1)
+                    self.session.SetValue(payload[0], payload[1])
+                except wmi.x_wmi:
+                    raise PyXSError, None, sys.exc_info()[2]
                 result = "OK"
         elif packet.op == Op.RM:
-                self.session.RemoveValue(packet.payload)[0]
+                try:
+                    self.session.RemoveValue(packet.payload)[0]
+                except wmi.x_wmi:
+                    raise PyXSError, None, sys.exc_info()[2]
                 result = "OK"
         elif packet.op == Op.DIRECTORY:
                 #result = map(remove_paths, self.session.GetChildren(packet.payload)[0].childNodes)
-                result = self.session.GetChildren(packet.payload)[0].childNodes
-                result = "\x00".join(result)
+                try:
+                    result = self.session.GetChildren(packet.payload)[0].childNodes
+                    result = "\x00".join(result)
+                except wmi.x_wmi:
+                    raise PyXSError, None, sys.exc_info()[2]
         else:
                 raise Exception("Unsupported XenStore Action ({x})".format(x=packet.op))
         self.response_packet = Packet(packet.op, result, packet.rq_id, packet.tx_id)
@@ -432,5 +447,4 @@ class XenBusConnectionWin2008(FileDescriptorConnection):
         except Exception as e:
              raise ConnectionError("Error while opening {0!r}: {1}"
                                   .format(self.path, e.args))
-
 
