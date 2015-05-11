@@ -28,7 +28,7 @@ import os
 from collections import deque
 
 from ._internal import Event, Packet, Op
-from .connection import UnixSocketConnection, XenBusConnection, XenBusConnectionWin
+from .connection import UnixSocketConnection, XenBusConnection, XenBusConnectionWin, XenBusConnectionWin2008
 from .exceptions import UnexpectedPacket, PyXSError
 from .helpers import validate_path, validate_watch_path, validate_perms, \
     dict_merge, force_unicode, error
@@ -90,7 +90,13 @@ class Client(object):
             self.connection = UnixSocketConnection(
                 unix_socket_path, socket_timeout=socket_timeout)
         elif os.name in ["nt"]:
-            self.connection = XenBusConnectionWin()
+            import wmi
+            c = wmi.WMI()
+            for system in c.Win32_OperatingSystem():
+                if re.match('Microsoft Windows Server 2008.*', system.caption):
+                    self.connection = XenBusConnectionWin2008()
+                else:
+                    self.connection = XenBusConnectionWin()
         else:
             self.connection = XenBusConnection(xen_bus_path)
 
@@ -124,13 +130,7 @@ class Client(object):
 
         with self.tx_lock:
             kwargs["tx_id"] = self.tx_id  # Forcing ``tx_id`` here.
-            if op in [Op.WRITE]:
-                # xenstore will write the trailing \x00 of the value
-                # for writes so trim it for behaviour equivalent to
-                # xenstore-write
-                self.connection.send(Packet(op, "".join(args)[:-1], **kwargs))
-            else:
-                self.connection.send(Packet(op, "".join(args), **kwargs))
+            self.connection.send(Packet(op, "".join(args), **kwargs))
 
             # If we have any watched paths `XenStore` will send watch
             # events mixed with replies to other operations, so we loop
@@ -222,7 +222,7 @@ class Client(object):
         :param str path: path to list.
         """
         payload = self.execute_command(Op.DIRECTORY, path)
-        return [] if payload is "" else payload.split("\x00")
+        return [] if payload is "" else map(lambda x : x.split('/')[-1], payload.split("\x00"))
 
     def get_permissions(self, path):
         """Returns a list of permissions for a given `path`, see

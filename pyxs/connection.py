@@ -12,15 +12,19 @@
 
 from __future__ import absolute_import, unicode_literals
 
-__all__ = ["UnixSocketConnection", "XenBusConnection", "XenBusConnectionWin"]
+__all__ = ["UnixSocketConnection", "XenBusConnection", "XenBusConnectionWin", "XenBusConnectionWin2008"]
 
 import errno
 import os
 import platform
 import socket
 import sys
+from ._internal import Packet, Op
+sys.coinit_flags = 0
+import pythoncom
 
 if os.name in ["nt"]:
+    import wmi
     import ctypes
     from ctypes.wintypes import HANDLE
     from ctypes.wintypes import BOOL
@@ -32,6 +36,8 @@ if os.name in ["nt"]:
     from ctypes.wintypes import LPCSTR
     from ctypes.wintypes import HKEY
     from ctypes.wintypes import BYTE
+    sys.coinit_flags = 0
+    import pythoncom
 
 if sys.version_info[0] is not 3:
     bytes, str = str, unicode
@@ -200,9 +206,77 @@ class XenBusConnection(FileDescriptorConnection):
                                   .format(self.path, e.args))
 
 
-_winDevicePath = None
+_wmiSession = None
 
 class XenBusConnectionWin(FileDescriptorConnection):
+        
+    session = None
+    response_packet = None
+    
+
+    def __init__(self):
+        pass
+
+
+    def __copy__(self):
+        return self.__class__(self.path)
+
+
+    def connect(self):
+        global _wmiSession
+    
+        # Create a WMI Session
+        if not _wmiSession:
+            _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
+
+        xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
+        sessions = _wmiSession.query("select * from XenProjectXenStoreSession where InstanceName = 'Xen Interface\Session_PyxsSession_0'")
+        if len(sessions) <= 0:
+            session_name = "PyxsSession"
+            session_id = xenStoreBase.AddSession(Id=session_name)[0]
+            self.session = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
+        else:
+            self.session = sessions[0]
+
+
+    # Emulate sending the packet directly to the XenStore interface
+    # and store the result in response_packet 
+    def send(self, packet):
+
+        self.connect()
+
+        remove_paths = lambda x : x.split('/')[-1]
+
+        if packet.op == Op.READ:
+                #result = remove_paths(self.session.GetValue(packet.payload)[0])
+                result = self.session.GetValue(packet.payload)[0]
+        elif packet.op == Op.WRITE:
+                payload = packet.payload.split('\x00', 1)
+                self.session.SetValue(payload[0], payload[1])
+                result = "OK"
+        elif packet.op == Op.RM:
+                self.session.RemoveValue(packet.payload)[0]
+                result = "OK"
+        elif packet.op == Op.DIRECTORY:
+                #result = map(remove_paths, self.session.GetChildren(packet.payload)[0].childNodes)
+                result = self.session.GetChildren(packet.payload)[0].childNodes
+                result = "\x00".join(result)
+        else:
+                raise Exception("Unsupported XenStore Action ({x})".format(x=packet.op))
+        self.response_packet = Packet(packet.op, result, packet.rq_id, packet.tx_id)
+
+
+    def recv(self):
+        return self.response_packet
+
+
+    def disconnect(self, silent=True):
+        self.session = None
+
+
+_winDevicePath = None
+
+class XenBusConnectionWin2008(FileDescriptorConnection):
     def __init__(self):
         global _winDevicePath
 
@@ -358,3 +432,5 @@ class XenBusConnectionWin(FileDescriptorConnection):
         except Exception as e:
              raise ConnectionError("Error while opening {0!r}: {1}"
                                   .format(self.path, e.args))
+
+
