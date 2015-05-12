@@ -222,29 +222,42 @@ class XenBusConnectionWin(FileDescriptorConnection):
         return self.__class__(self.path)
 
 
-    def connect(self):
+    def connect(self, retry=False):
         global _wmiSession
     
         # Create a WMI Session
-        if not _wmiSession:
-            _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
-
-        xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
-        sessions = _wmiSession.query("select * from XenProjectXenStoreSession where InstanceName = 'Xen Interface\Session_PyxsSession_0'")
+        try:
+            if not _wmiSession:
+                _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
+            xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
+        except wmi.x_wmi:
+            if not retry:
+                _wmiSession = None
+                self.connect(retry=True)
+                return
+            else: raise
+            
+        try:
+            sessions = _wmiSession.query("select * from XenProjectXenStoreSession where InstanceName = 'Xen Interface\Session_PyxsSession_0'")
+        except:
+            sessions = []
+      
         if len(sessions) <= 0:
             session_name = "PyxsSession"
             session_id = xenStoreBase.AddSession(Id=session_name)[0]
             self.session = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
         else:
-            self.session = sessions[0]
+            self.session = sessions.pop()
 
 
     # Emulate sending the packet directly to the XenStore interface
     # and store the result in response_packet 
     def send(self, packet):
+        global _wmiSession
 
         try:
-            self.connect()
+            if not _wmiSession:
+                self.connect()
         except wmi.x_wmi:
             raise PyXSError, None, sys.exc_info()[2]
 
