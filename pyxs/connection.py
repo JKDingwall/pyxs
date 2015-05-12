@@ -14,6 +14,7 @@ from __future__ import absolute_import, unicode_literals
 
 __all__ = ["UnixSocketConnection", "XenBusConnection", "XenBusConnectionWin", "XenBusConnectionWin2008"]
 
+import logging
 import errno
 import os
 import platform
@@ -245,9 +246,9 @@ class XenBusConnectionWin(FileDescriptorConnection):
         if len(sessions) <= 0:
             session_name = "PyxsSession"
             session_id = xenStoreBase.AddSession(Id=session_name)[0]
-            self.session = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
-        else:
-            self.session = sessions.pop()
+            sessions = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
+
+        self.session = sessions.pop()
 
 
     # Emulate sending the packet directly to the XenStore interface
@@ -256,7 +257,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
         global _wmiSession
 
         try:
-            if not _wmiSession:
+            if not _wmiSession or not self.session:
                 self.connect()
         except wmi.x_wmi:
             raise PyXSError, None, sys.exc_info()[2]
