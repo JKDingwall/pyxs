@@ -228,12 +228,12 @@ class XenBusConnectionWin(FileDescriptorConnection):
     
         # Create a WMI Session
         try:
-            if not _wmiSession:
+            if not _wmiSession or retry:
                 _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
             xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
         except wmi.x_wmi:
             if not retry:
-                _wmiSession = None
+                #_wmiSession = None
                 self.connect(retry=True)
                 return
             else: raise
@@ -461,4 +461,3 @@ class XenBusConnectionWin2008(FileDescriptorConnection):
         except Exception as e:
              raise ConnectionError("Error while opening {0!r}: {1}"
                                   .format(self.path, e.args))
-
