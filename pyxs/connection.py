@@ -20,6 +20,7 @@ import os
 import platform
 import socket
 import sys
+from time import sleep
 from ._internal import Packet, Op
 sys.coinit_flags = 0
 import pythoncom
@@ -231,9 +232,9 @@ class XenBusConnectionWin(FileDescriptorConnection):
             if not _wmiSession or retry:
                 _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
             xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
-        except wmi.x_wmi:
+        except: # WMI can raise all sorts of exceptions
             if not retry:
-                #_wmiSession = None
+                sleep(0.5)
                 self.connect(retry=True)
                 return
             else: raise
@@ -246,7 +247,13 @@ class XenBusConnectionWin(FileDescriptorConnection):
         if len(sessions) <= 0:
             session_name = "PyxsSession"
             session_id = xenStoreBase.AddSession(Id=session_name)[0]
-            sessions = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
+            try:
+                sessions = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
+            except:
+                sleep(0.5)
+                try:
+                    sessions = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
+                except: raise
 
         self.session = sessions.pop()
 

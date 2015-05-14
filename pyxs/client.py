@@ -25,6 +25,7 @@ import threading
 import time
 import posixpath
 import os
+from time import sleep
 from collections import deque
 
 from ._internal import Event, Packet, Op
