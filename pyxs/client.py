@@ -92,7 +92,16 @@ class Client(object):
         elif os.name in ["nt"]:
             import wmi
             c = wmi.WMI()
-            for system in c.Win32_OperatingSystem():
+            try:
+            	win32_os = c.Win32_OperatingSystem()
+            except wmi.x_wmi:
+                sleep(0.5)
+                try:
+            	    win32_os = c.Win32_OperatingSystem()
+                except wmi.x_wmi:
+                    raise PyXSError()
+
+            for system in win32_os:
                 if re.match('Microsoft Windows Server 2008.*', system.caption):
                     self.connection = XenBusConnectionWin2008()
                 else:
