@@ -224,20 +224,21 @@ class XenBusConnectionWin(FileDescriptorConnection):
         return self.__class__(self.path)
 
 
-    def connect(self, retry=False):
+    def connect(self, retry=0):
         global _wmiSession
     
         # Create a WMI Session
         try:
-            if not _wmiSession or retry:
+            if not _wmiSession or retry > 0:
                 _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
             xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
         except: # WMI can raise all sorts of exceptions
-            if not retry:
+            if retry > 20:
                 sleep(5)
-                self.connect(retry=True)
+                self.connect(retry=(retry+1))
                 return
-            else: raise
+            else: 
+                raise PyXSError, None, sys.exc_info()[2]
             
         try:
             sessions = _wmiSession.query("select * from XenProjectXenStoreSession where InstanceName = 'Xen Interface\Session_PyxsSession_0'")
@@ -253,7 +254,8 @@ class XenBusConnectionWin(FileDescriptorConnection):
                 sleep(0.5)
                 try:
                     sessions = _wmiSession.query("select * from XenProjectXenStoreSession where SessionId = {id}".format(id=session_id))
-                except: raise
+                except: 
+                    raise PyXSError, None, sys.exc_info()[2]
 
         self.session = sessions.pop()
 
