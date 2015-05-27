@@ -233,7 +233,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
                 _wmiSession = wmi.WMI(moniker="//./root/wmi", find_classes=False)
             xenStoreBase = _wmiSession.XenProjectXenStoreBase()[0]
         except: # WMI can raise all sorts of exceptions
-            if retry > 20:
+            if retry < 20:
                 sleep(5)
                 self.connect(retry=(retry+1))
                 return
