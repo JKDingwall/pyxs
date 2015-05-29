@@ -29,7 +29,7 @@ from time import sleep
 from collections import deque
 
 from ._internal import Event, Packet, Op
-from .connection import UnixSocketConnection, XenBusConnection, XenBusConnectionWin, XenBusConnectionWin2008
+from .connection import UnixSocketConnection, XenBusConnection, XenBusConnectionWinWINPV, XenBusConnectionWinGPLPV
 from .exceptions import UnexpectedPacket, PyXSError
 from .helpers import validate_path, validate_watch_path, validate_perms, \
     dict_merge, force_unicode, error
@@ -104,9 +104,9 @@ class Client(object):
 
             for system in win32_os:
                 if re.match('Microsoft Windows Server 2008.*', system.caption):
-                    self.connection = XenBusConnectionWin2008()
+                    self.connection = XenBusConnectionWinGPLPV()
                 else:
-                    self.connection = XenBusConnectionWin()
+                    self.connection = XenBusConnectionWinWINPV()
         else:
             self.connection = XenBusConnection(xen_bus_path)
 

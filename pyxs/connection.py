@@ -12,7 +12,7 @@
 
 from __future__ import absolute_import, unicode_literals
 
-__all__ = ["UnixSocketConnection", "XenBusConnection", "XenBusConnectionWin", "XenBusConnectionWin2008"]
+__all__ = ["UnixSocketConnection", "XenBusConnection", "XenBusConnectionWinWINPV", "XenBusConnectionWinGPLPV"]
 
 import logging
 import errno
@@ -210,7 +210,7 @@ class XenBusConnection(FileDescriptorConnection):
 
 _wmiSession = None
 
-class XenBusConnectionWin(FileDescriptorConnection):
+class XenBusConnectionWinWINPV(FileDescriptorConnection):
     session = None
     response_packet = None
 
@@ -313,7 +313,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
 
 _winDevicePath = None
 
-class XenBusConnectionWin2008(FileDescriptorConnection):
+class XenBusConnectionWinGPLPV(FileDescriptorConnection):
     def __init__(self):
         global _winDevicePath
 
