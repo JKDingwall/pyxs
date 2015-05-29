@@ -94,11 +94,11 @@ class Client(object):
             import wmi
             c = wmi.WMI()
             try:
-            	win32_os = c.Win32_OperatingSystem()
+                win32_os = c.Win32_OperatingSystem()
             except wmi.x_wmi:
                 sleep(0.5)
                 try:
-            	    win32_os = c.Win32_OperatingSystem()
+                    win32_os = c.Win32_OperatingSystem()
                 except wmi.x_wmi:
                     raise PyXSError()
 

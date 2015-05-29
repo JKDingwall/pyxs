@@ -211,10 +211,9 @@ class XenBusConnection(FileDescriptorConnection):
 _wmiSession = None
 
 class XenBusConnectionWin(FileDescriptorConnection):
-        
     session = None
     response_packet = None
-    
+
 
     def __init__(self):
         pass
@@ -226,7 +225,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
 
     def connect(self, retry=0):
         global _wmiSession
-    
+
         # Create a WMI Session
         try:
             if not _wmiSession or retry > 0:
@@ -237,14 +236,14 @@ class XenBusConnectionWin(FileDescriptorConnection):
                 sleep(5)
                 self.connect(retry=(retry+1))
                 return
-            else: 
+            else:
                 raise PyXSError, None, sys.exc_info()[2]
-            
+
         try:
             sessions = _wmiSession.query("select * from XenProjectXenStoreSession where InstanceName = 'Xen Interface\Session_PyxsSession_0'")
         except Exception:
             sessions = []
-      
+
         if len(sessions) <= 0:
             session_name = "PyxsSession"
             session_id = xenStoreBase.AddSession(Id=session_name)[0]
@@ -261,7 +260,7 @@ class XenBusConnectionWin(FileDescriptorConnection):
 
 
     # Emulate sending the packet directly to the XenStore interface
-    # and store the result in response_packet 
+    # and store the result in response_packet
     def send(self, packet):
         global _wmiSession
 
