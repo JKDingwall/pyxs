@@ -91,22 +91,14 @@ class Client(object):
             self.connection = UnixSocketConnection(
                 unix_socket_path, socket_timeout=socket_timeout)
         elif os.name in ["nt"]:
+            # There are two windows pv driver projects, examine wmi
+            # classes to try and determine which one we want to use.
             import wmi
-            c = wmi.WMI()
             try:
-                win32_os = c.Win32_OperatingSystem()
-            except wmi.x_wmi:
-                sleep(0.5)
-                try:
-                    win32_os = c.Win32_OperatingSystem()
-                except wmi.x_wmi:
-                    raise PyXSError()
-
-            for system in win32_os:
-                if re.match('Microsoft Windows Server 2008.*', system.caption):
-                    self.connection = XenBusConnectionWinGPLPV()
-                else:
-                    self.connection = XenBusConnectionWinWINPV()
+                wmi.WMI(moniker="//./root/wmi", find_classes=False).XenProjectXenStoreBase()
+                self.connection = XenBusConnectionWinWINPV()
+            except AttributeError:
+                self.connection = XenBusConnectionWinGPLPV()
         else:
             self.connection = XenBusConnection(xen_bus_path)
 
