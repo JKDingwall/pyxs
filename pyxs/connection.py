@@ -23,7 +23,6 @@ import sys
 from time import sleep
 from ._internal import Packet, Op
 sys.coinit_flags = 0
-import pythoncom
 
 if os.name in ["nt"]:
     import wmi
@@ -39,7 +38,6 @@ if os.name in ["nt"]:
     from ctypes.wintypes import HKEY
     from ctypes.wintypes import BYTE
     sys.coinit_flags = 0
-    import pythoncom
 
 if sys.version_info[0] is not 3:
     bytes, str = str, unicode
