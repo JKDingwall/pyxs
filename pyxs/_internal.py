@@ -13,6 +13,7 @@ from __future__ import unicode_literals
 
 __all__ = ["Event", "Op", "Packet"]
 
+import os
 import struct
 from collections import namedtuple
 
@@ -67,12 +68,17 @@ class Packet(namedtuple("_Packet", "op rq_id tx_id size payload")):
 
     def __new__(cls, op, payload, rq_id=None, tx_id=None):
         # Checking restrictions:
-        # a) payload is limited to 4096 bytes.
-        if len(payload) > 4096:
-            raise InvalidPayload(payload)
-        # b) operation requested is present in ``xsd_sockmsg_type``.
+        # a) operation requested is present in ``xsd_sockmsg_type``.
         if op not in Op:
             raise InvalidOperation(op)
+
+        # This is to code around http://lists.xenproject.org/archives/html/win-pv-devel/2016-02/msg00005.html
+        if os.name == "nt" and op == Op.READ and payload is None:
+            payload = ""
+
+        # b) payload is limited to 4096 bytes.
+        if len(payload) > 4096:
+            raise InvalidPayload(payload)
 
         return super(Packet, cls).__new__(cls,
             op, rq_id or 0, tx_id or 0, len(payload), payload)
