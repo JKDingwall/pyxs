@@ -184,7 +184,7 @@ class XenBusConnection(FileDescriptorConnection):
             system = platform.system()
 
             if system == "Linux":
-                path = "/proc/xen/xenbus"
+                path = "/dev/xen/xenbus" if os.path.exists("/dev/xen/xenbus") else "/proc/xen/xenbus"
             elif system == "NetBSD":
                 path = "/kern/xen/xenbus"
             else:
