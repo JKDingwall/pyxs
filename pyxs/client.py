@@ -86,9 +86,12 @@ class Client(object):
                  xen_bus_path=None, connection=None, transaction=None):
         if connection:
             self.connection = connection
-        elif os.name in ["posix"] and (unix_socket_path or not xen_bus_path):
-            self.connection = UnixSocketConnection(
-                unix_socket_path, socket_timeout=socket_timeout)
+        elif os.name in ["posix"]:
+            if xen_bus_path or not unix_socket_path:
+                self.connection = XenBusConnection(xen_bus_path)
+            else:
+                self.connection = UnixSocketConnection(
+                    unix_socket_path, socket_timeout=socket_timeout)
         elif os.name in ["nt"]:
             # There are two windows pv driver projects, examine wmi
             # classes to try and determine which one we want to use.
@@ -99,7 +102,7 @@ class Client(object):
             except AttributeError:
                 self.connection = XenBusConnectionWinGPLPV()
         else:
-            self.connection = XenBusConnection(xen_bus_path)
+            raise ConnectionError("no connection to xenstore available")
 
         self.tx_id = 0
         self.tx_lock = threading.Lock()
