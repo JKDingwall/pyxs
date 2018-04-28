@@ -22,7 +22,7 @@ from .exceptions import InvalidOperation, InvalidPayload
 
 #: Operations supported by XenStore.
 Operations = Op = namedtuple("Operations", [
-    "DEBUG",
+    "CONTROL",
     "DIRECTORY",
     "READ",
     "GET_PERMS",

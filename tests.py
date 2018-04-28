@@ -32,7 +32,7 @@ def test_packet():
 
     # b) invalid payload -- maximum size exceeded.
     with pytest.raises(InvalidPayload):
-        Packet(Op.DEBUG, "hello" * 4096, 0)
+        Packet(Op.CONTROL, "hello" * 4096, 0)
 
 
 # Helpers.
@@ -169,13 +169,13 @@ def test_client_execute_command():
 
     # a) arguments contain invalid characters.
     with pytest.raises(ValueError):
-        c.execute_command(Op.DEBUG, "\x07foo")
+        c.execute_command(Op.CONTROL, "\x07foo")
 
     # b) command validator fails.
-    c.COMMAND_VALIDATORS[Op.DEBUG] = lambda *args: False
+    c.COMMAND_VALIDATORS[Op.CONTROL] = lambda *args: False
     with pytest.raises(ValueError):
-        c.execute_command(Op.DEBUG, "foo")
-    c.COMMAND_VALIDATORS.pop(Op.DEBUG)
+        c.execute_command(Op.CONTROL, "foo")
+    c.COMMAND_VALIDATORS.pop(Op.CONTROL)
 
     # c) ``Packet`` constructor fails.
     with pytest.raises(InvalidPayload):
@@ -187,7 +187,7 @@ def test_client_execute_command():
 
     _old_recv = c.connection.recv
     # e) XenStore returns a packet with invalid operation in the header.
-    c.connection.recv = lambda *args: Packet(Op.DEBUG, "boo")
+    c.connection.recv = lambda *args: Packet(Op.CONTROL, "boo")
     with pytest.raises(UnexpectedPacket):
         c.execute_command(Op.READ, "/foo/bar")
     c.connection.recv = _old_recv
