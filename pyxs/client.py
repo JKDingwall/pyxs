@@ -454,7 +454,7 @@ class Monitor(object):
             # Executing a noop, hopefuly we'll get some events queued
             # in the meantime. Note: I know it sucks, but it seems like
             # there's no other way ...
-            self.client.execute_command(Op.CONTROL, "check")
+            self.client.execute_command(Op.CONTROL, "noop")
 
             if sleep is not None:
                 time.sleep(sleep)
